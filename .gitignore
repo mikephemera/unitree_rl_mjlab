@@ -1,5 +1,9 @@
 *.egg-info
-.idea
+
+# IDE
+.vscode/
+.idea/
+
 outputs
 logs
 wandb
@@ -11,3 +15,15 @@ deploy/robots/g1_23dof/build
 deploy/robots/r1/build
 deploy/robots/a2/build
 src/assets/motions/g1/dance1_subject2.npz
+
+# CACHE
+__pycache__/
+build/
+
+# Claude Code
+.claude/
+CLAUDE.md
+CLAUDE_*.md
+
+# Test coverage
+.coverage
