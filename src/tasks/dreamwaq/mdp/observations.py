@@ -66,18 +66,26 @@ def cenet_features(env: ManagerBasedRlEnv, history_length: int) -> torch.Tensor:
         context vector (16D).
     """
     # Access the runner via env (runner should be attached as an attribute)
-    runner = env.unwrapped.runner
-    # Use pre‑computed CENet outputs stored in the runner
-    # These are set by runner.cenet.before_action before each action
-    est_vel = runner.current_est_vel
-    context_vec = runner.current_context_vec
-    if est_vel is None or context_vec is None:
-        # Fallback: compute from history buffer (should not happen during training)
-        hist_obs = runner.get_history_observations(env.env_ids, history_length)
-        batch_size = hist_obs.shape[0]
-        hist_obs_flat = hist_obs.reshape(batch_size, -1)
-        with torch.no_grad():
-            _, est_vel, _, _, context_vec = runner.cenet(hist_obs_flat)
-    # Concatenate features
-    features = torch.cat([est_vel, context_vec], dim=-1)
-    return features
+    if hasattr(env.unwrapped, 'runner') and env.unwrapped.runner is not None:
+        runner = env.unwrapped.runner
+        # Use pre‑computed CENet outputs stored in the runner
+        # These are set by runner.cenet.before_action before each action
+        est_vel = runner.current_est_vel
+        context_vec = runner.current_context_vec
+        if est_vel is None or context_vec is None:
+            # Fallback: compute from history buffer (should not happen during training)
+            env_ids = torch.arange(env.num_envs, device=env.device)
+            hist_obs = runner.get_history_observations(env_ids, history_length)
+            batch_size = hist_obs.shape[0]
+            hist_obs_flat = hist_obs.reshape(batch_size, -1)
+            with torch.no_grad():
+                _, est_vel, _, _, context_vec = runner.cenet(hist_obs_flat)
+        # Concatenate features
+        features = torch.cat([est_vel, context_vec], dim=-1)
+        return features
+    else:
+        # No runner attached (play mode with dummy agents)
+        # Return zero features with correct shape
+        num_envs = env.num_envs
+        device = env.device
+        return torch.zeros((num_envs, 3 + 16), device=device)

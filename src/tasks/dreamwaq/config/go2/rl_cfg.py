@@ -42,7 +42,7 @@ def unitree_go2_dreamwaq_runner_cfg() -> DreamWaqOnPolicyRunnerCfg:
         experiment_name="go2_dreamwaq",
         save_interval=100,
         num_steps_per_env=24,
-        max_iterations=10001,
+        max_iterations=10001*10,
         # DreamWaq-specific hyperparameters
         cenet_beta=1.0,
         cenet_beta_limit=4.0,

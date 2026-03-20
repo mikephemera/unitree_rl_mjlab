@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 
 import torch
 import wandb
+from tensordict import TensorDict
 
 from mjlab.rl import RslRlVecEnvWrapper
 from mjlab.rl.exporter_utils import (
@@ -101,13 +102,19 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
         true_vel = robot.data.root_link_lin_vel_b
         return true_vel.to(self.device)
 
+    def _get_actor_observation(self, obs: TensorDict) -> torch.Tensor:
+        """Extract actor observation tensor from TensorDict."""
+        # The TensorDict contains keys "actor" and "critic" (observation groups).
+        return obs["actor"].to(self.device)
+
     def _get_raw_observation(self) -> torch.Tensor:
         """Get raw observation from environment (before any normalization)."""
-        # The environment's get_observations returns the full observation (including CENet features).
-        # Extract the first raw_obs_dim dimensions as raw observation.
+        # The environment's get_observations returns a TensorDict with observation groups.
         obs = self.env.get_observations()
-        raw_obs = obs[:, :self.raw_obs_dim]
-        return raw_obs.to(self.device)
+        actor_obs = self._get_actor_observation(obs)
+        # raw_obs_dim corresponds to the first raw_obs_dim dimensions of actor observation
+        raw_obs = actor_obs[:, :self.raw_obs_dim]
+        return raw_obs
 
     def update_history(self, raw_obs: torch.Tensor):
         """Update history buffer with new raw observation."""
@@ -179,6 +186,8 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
             self.alg.broadcast_parameters()
 
         # Initialize the logging writer
+        if self.logger.log_dir is not None:
+            os.makedirs(self.logger.log_dir, exist_ok=True)
         self.logger.init_logging_writer()
 
         # Start training
@@ -223,10 +232,10 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
                     )
 
                     # CENet after action (store next raw observation)
-                    self.cenet.after_action(next_obs[:, :self.raw_obs_dim])  # assume first raw_obs_dim are raw obs
+                    self.cenet.after_action(self._get_actor_observation(next_obs)[:, :self.raw_obs_dim])  # assume first raw_obs_dim are raw obs
 
                     # Update history buffer with new raw observation
-                    self.update_history(next_obs[:, :self.raw_obs_dim])
+                    self.update_history(self._get_actor_observation(next_obs)[:, :self.raw_obs_dim])
 
                     # Process the step for PPO
                     self.alg.process_env_step(next_obs, rewards, dones, extras)
@@ -285,32 +294,39 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
             self.logger.stop_logging_writer()
 
     def save(self, path: str, infos=None):
+        # Ensure parent directory exists before any save operation
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        # First call parent save to create the base checkpoint
         super().save(path, infos)
-        # Save CENet weights
-        cenet_path = os.path.join(path, "cenet.pt")
-        torch.save(self.cenet.state_dict(), cenet_path)
+        # Load the saved checkpoint to add CENet weights
+        checkpoint_dir = os.path.dirname(path)
+        loaded_dict = torch.load(path, map_location=self.device, weights_only=False)
+        # Add CENet state dict to the checkpoint
+        loaded_dict["cenet_state_dict"] = self.cenet.state_dict()
+        # Save back with CENet included
+        torch.save(loaded_dict, path)
         # Export policy to ONNX (including CENet feature generation)
-        policy_path = path.split("model")[0]
         filename = "policy.onnx"
-        self.export_policy_to_onnx(policy_path, filename)
+        self.export_policy_to_onnx(checkpoint_dir, filename)
         run_name: str = (
             wandb.run.name if self.logger.logger_type == "wandb" and wandb.run else "local"
         )  # type: ignore[assignment]
-        onnx_path = os.path.join(policy_path, filename)
+        onnx_path = os.path.join(checkpoint_dir, filename)
         metadata = get_base_metadata(self.env.unwrapped, run_name)
         attach_metadata_to_onnx(onnx_path, metadata)
         if self.logger.logger_type in ["wandb"]:
-            wandb.save(policy_path + filename, base_path=os.path.dirname(policy_path))
+            wandb.save(os.path.join(checkpoint_dir, filename), base_path=checkpoint_dir)
 
-    def load(self, path: str, **kwargs):
-        super().load(path, **kwargs)
-        # Load CENet weights
-        cenet_path = os.path.join(path, "cenet.pt")
-        if os.path.exists(cenet_path):
-            self.cenet.load_state_dict(torch.load(cenet_path, map_location=self.device))
-            print(f"Loaded CENet from {cenet_path}")
+    def load(self, path: str, load_cfg: dict | None = None, strict: bool = True, map_location: str | None = None, **kwargs):
+        # Call parent load and get the loaded dictionary
+        loaded_dict = super().load(path, load_cfg=load_cfg, strict=strict, map_location=map_location, **kwargs)
+        # Load CENet state dict if present in the checkpoint
+        if "cenet_state_dict" in loaded_dict:
+            self.cenet.load_state_dict(loaded_dict["cenet_state_dict"])
+            print(f"Loaded CENet from checkpoint {path}")
         else:
-            print(f"CENet weights not found at {cenet_path}, skipping.")
+            print(f"CENet state dict not found in checkpoint {path}, skipping.")
+        return loaded_dict
 
     def export_policy_to_onnx(self, path: str, filename: str = "policy.onnx"):
         """Export policy to ONNX, incorporating CENet feature generation.
