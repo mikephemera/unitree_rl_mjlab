@@ -1,0 +1,1 @@
+"""DreamWaq task configurations for different robots."""
