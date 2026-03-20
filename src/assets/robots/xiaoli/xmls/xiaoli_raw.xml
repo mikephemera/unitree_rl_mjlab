@@ -1,0 +1,91 @@
+<mujoco model="xiaoli_description0522">
+  <compiler angle="radian"/>
+
+  <asset>
+    <mesh name="base" content_type="model/stl" file="base.STL"/>
+    <mesh name="FL_hip" content_type="model/stl" file="FL_hip.STL"/>
+    <mesh name="Fl_thigh" content_type="model/stl" file="Fl_thigh.STL"/>
+    <mesh name="FL_calf" content_type="model/stl" file="FL_calf.STL"/>
+    <mesh name="FL_foot" content_type="model/stl" file="FL_foot.STL"/>
+    <mesh name="FR_hip" content_type="model/stl" file="FR_hip.STL"/>
+    <mesh name="FR_thigh" content_type="model/stl" file="FR_thigh.STL"/>
+    <mesh name="FR_calf" content_type="model/stl" file="FR_calf.STL"/>
+    <mesh name="FR_foot" content_type="model/stl" file="FR_foot.STL"/>
+    <mesh name="RL_hip" content_type="model/stl" file="RL_hip.STL"/>
+    <mesh name="RL_thigh" content_type="model/stl" file="RL_thigh.STL"/>
+    <mesh name="RL_calf" content_type="model/stl" file="RL_calf.STL"/>
+    <mesh name="RL_foot" content_type="model/stl" file="RL_foot.STL"/>
+    <mesh name="RR_hip" content_type="model/stl" file="RR_hip.STL"/>
+    <mesh name="RR_thigh" content_type="model/stl" file="RR_thigh.STL"/>
+    <mesh name="RR_calf" content_type="model/stl" file="RR_calf.STL"/>
+    <mesh name="RR_foot" content_type="model/stl" file="RR_foot.STL"/>
+  </asset>
+
+  <worldbody>
+    <geom type="mesh" rgba="1 1 1 1" mesh="base"/>
+    <body name="FL_hip" pos="0.1934 0.0465 0">
+      <inertial pos="-0.0054 0.00194 -0.000105" quat="0.497014 0.499245 0.505462 0.498237" mass="0.678" diaginertia="0.00088403 0.000596003 0.000479967"/>
+      <joint name="FL_hip_joint" pos="0 0 0" axis="1 0 0" range="-1.0472 1.0472" actuatorfrcrange="-23.7 23.7"/>
+      <geom type="mesh" mesh="FL_hip"/>
+      <body name="FL_thigh" pos="0 0.0955 0">
+        <inertial pos="-0.00374 -0.0223 -0.0327" quat="0.829533 0.0847635 -0.0200632 0.551623" mass="1.152" diaginertia="0.00594973 0.00584149 0.000878787"/>
+        <joint name="FL_thigh_joint" pos="0 0 0" axis="0 1 0" range="-1.5708 3.4907" actuatorfrcrange="-23.7 23.7"/>
+        <geom type="mesh" mesh="Fl_thigh"/>
+        <body name="FL_calf" pos="0 0 -0.213">
+          <inertial pos="0.0043501 -0.000773969 -0.135206" quat="0.715636 0.00291333 -0.00291756 0.698462" mass="0.194" diaginertia="0.00141561 0.00139457 4.33904e-05"/>
+          <joint name="FL_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 -0.83776" actuatorfrcrange="-45.43 45.43"/>
+          <geom type="mesh" mesh="FL_calf"/>
+          <geom pos="0 0 -0.213" quat="1 0 0 0" type="mesh" mesh="FL_foot"/>
+        </body>
+      </body>
+    </body>
+    <body name="FR_hip" pos="0.1934 -0.0465 0">
+      <inertial pos="-0.0054 -0.00194 -0.000105" quat="0.498237 0.505462 0.499245 0.497014" mass="0.678" diaginertia="0.00088403 0.000596003 0.000479967"/>
+      <joint name="FR_hip_joint" pos="0 0 0" axis="1 0 0" range="-1.0472 1.0472" actuatorfrcrange="-23.7 23.7"/>
+      <geom quat="4.63268e-05 1 0 0" type="mesh" mesh="FR_hip"/>
+      <body name="FR_thigh" pos="0 -0.0955 0">
+        <inertial pos="-0.00374 0.0223 -0.0327" quat="0.551623 -0.0200632 0.0847635 0.829533" mass="1.152" diaginertia="0.00594973 0.00584149 0.000878787"/>
+        <joint name="FR_thigh_joint" pos="0 0 0" axis="0 1 0" range="-1.5708 3.4907" actuatorfrcrange="-23.7 23.7"/>
+        <geom type="mesh" mesh="FR_thigh"/>
+        <body name="FR_calf" pos="0 0 -0.213">
+          <inertial pos="0.0043501 0.000773969 -0.135206" quat="0.698462 -0.00291756 0.00291333 0.715636" mass="0.194" diaginertia="0.00141561 0.00139457 4.33904e-05"/>
+          <joint name="FR_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 -0.83776" actuatorfrcrange="-45.43 45.43"/>
+          <geom type="mesh" mesh="FR_calf"/>
+          <geom pos="0 0 -0.213" quat="1 0 0 0" type="mesh" mesh="FR_foot"/>
+        </body>
+      </body>
+    </body>
+    <body name="RL_hip" pos="-0.1934 0.0465 0">
+      <inertial pos="0.0054 0.00194 -0.000105" quat="0.505462 0.498237 0.497014 0.499245" mass="0.678" diaginertia="0.00088403 0.000596003 0.000479967"/>
+      <joint name="RL_hip_joint" pos="0 0 0" axis="1 0 0" range="-1.0472 1.0472" actuatorfrcrange="-23.7 23.7"/>
+      <geom quat="4.63268e-05 0 1 0" type="mesh" mesh="RL_hip"/>
+      <body name="RL_thigh" pos="0 0.0955 0">
+        <inertial pos="-0.00374 -0.0223 -0.0327" quat="0.829533 0.0847635 -0.0200632 0.551623" mass="1.152" diaginertia="0.00594973 0.00584149 0.000878787"/>
+        <joint name="RL_thigh_joint" pos="0 0 0" axis="0 1 0" range="-0.5236 4.5379" actuatorfrcrange="-23.7 23.7"/>
+        <geom type="mesh" mesh="RL_thigh"/>
+        <body name="RL_calf" pos="0 0 -0.213">
+          <inertial pos="0.0043501 -0.000773969 -0.135206" quat="0.715636 0.00291333 -0.00291756 0.698462" mass="0.194" diaginertia="0.00141561 0.00139457 4.33904e-05"/>
+          <joint name="RL_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 -0.83776" actuatorfrcrange="-45.43 45.43"/>
+          <geom type="mesh" mesh="RL_calf"/>
+          <geom pos="0 0 -0.213" quat="1 0 0 0" type="mesh" mesh="RL_foot"/>
+        </body>
+      </body>
+    </body>
+    <body name="RR_hip" pos="-0.1934 -0.0465 0">
+      <inertial pos="0.0054 -0.00194 -0.000105" quat="0.499245 0.497014 0.498237 0.505462" mass="0.678" diaginertia="0.00088403 0.000596003 0.000479967"/>
+      <joint name="RR_hip_joint" pos="0 0 0" axis="1 0 0" range="-1.0472 1.0472" actuatorfrcrange="-23.7 23.7"/>
+      <geom quat="2.14617e-09 4.63268e-05 4.63268e-05 -1" type="mesh" mesh="RR_hip"/>
+      <body name="RR_thigh" pos="0 -0.0955 0">
+        <inertial pos="-0.00374 0.0223 -0.0327" quat="0.551623 -0.0200632 0.0847635 0.829533" mass="1.152" diaginertia="0.00594973 0.00584149 0.000878787"/>
+        <joint name="RR_thigh_joint" pos="0 0 0" axis="0 1 0" range="-0.5236 4.5379" actuatorfrcrange="-23.7 23.7"/>
+        <geom type="mesh" mesh="RR_thigh"/>
+        <body name="RR_calf" pos="0 0 -0.213">
+          <inertial pos="0.0043501 0.000773969 -0.135206" quat="0.698462 -0.00291756 0.00291333 0.715636" mass="0.194" diaginertia="0.00141561 0.00139457 4.33904e-05"/>
+          <joint name="RR_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 -0.83776" actuatorfrcrange="-45.43 45.43"/>
+          <geom type="mesh" mesh="RR_calf"/>
+          <geom pos="0 0 -0.213" quat="1 0 0 0" type="mesh" mesh="RR_foot"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
