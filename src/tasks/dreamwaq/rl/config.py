@@ -47,3 +47,9 @@ class DreamWaqOnPolicyRunnerCfg(RslRlOnPolicyRunnerCfg):
     # Architecture (can be overridden)
     cenet_hidden_dims: Tuple[int, ...] = field(default_factory=lambda: (256, 128))
     """Hidden dimensions for CENet encoder/decoder (default (256, 128))."""
+
+    # RMS normalization
+    obs_rms: bool = True
+    """Whether to apply RMS normalization to raw observations (default True)."""
+    true_vel_rms: bool = True
+    """Whether to apply RMS normalization to true velocity (default True)."""

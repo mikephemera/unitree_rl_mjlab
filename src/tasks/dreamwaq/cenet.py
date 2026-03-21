@@ -220,6 +220,9 @@ class CENet(nn.Module):
         else:
             raise AssertionError("Not even number for context vector parameters")
 
+        # Clip logvar to prevent numerical instability (exp overflow)
+        logvar = logvar.clamp(-10, 10)
+
         mu = mu.requires_grad_(True)
         logvar = logvar.requires_grad_(True)
         context_vec = self.reparameterize(mu, logvar).requires_grad_(True)  # z: 16 dim
@@ -289,7 +292,8 @@ class CENet(nn.Module):
 
             # Gradient step
             total_loss.backward()
-
+            # Gradient clipping to prevent explosion
+            torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
             self.optimizer.step()
 
             mean_total_loss += total_loss.item()

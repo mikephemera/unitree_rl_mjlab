@@ -54,6 +54,16 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
             device=self.device,
         ).to(self.device)
 
+        # RMS normalization for observations and true velocity
+        self.obs_rms = None
+        self.true_vel_rms = None
+        if train_cfg.get("obs_rms", True):
+            from rsl_rl.modules.normalization import EmpiricalNormalization
+            self.obs_rms = EmpiricalNormalization(shape=self.raw_obs_dim, eps=1e-8).to(self.device)
+        if train_cfg.get("true_vel_rms", True):
+            from rsl_rl.modules.normalization import EmpiricalNormalization
+            self.true_vel_rms = EmpiricalNormalization(shape=self.num_estvel, eps=1e-8).to(self.device)
+
         # History buffer for raw observations (circular buffer)
         self.history_buffer = None
         self.current_step = 0
@@ -95,6 +105,7 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
             true_vel_shape,
             true_onext_shape,
         )
+        self.cenet_storage = self.cenet.storage
 
     def _get_true_velocity(self) -> torch.Tensor:
         """Retrieve true velocity of robot base (linear velocity in base frame)."""
@@ -177,12 +188,27 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
 
         # Start learning
         raw_obs = self._get_raw_observation()
+        # Update RMS for raw observations
+        if self.obs_rms is not None:
+            self.obs_rms.update(raw_obs.detach())
         self.update_history(raw_obs)
         # Compute initial CENet features using current history (zeros for missing frames)
         obs_history = self.get_history_observations(
             torch.arange(num_envs, device=self.device), self.history_length
         )
         true_vel = self._get_true_velocity()
+        # Update RMS for true velocity
+        if self.true_vel_rms is not None:
+            self.true_vel_rms.update(true_vel.detach())
+        # Normalize inputs for CENet if RMS is enabled
+        if self.obs_rms is not None:
+            # obs_history shape: (batch, history_length * raw_obs_dim)
+            # Reshape to (batch, history_length, raw_obs_dim) for per-timestep normalization
+            obs_history_3d = obs_history.view(-1, self.history_length, self.raw_obs_dim)
+            obs_history_3d = self.obs_rms(obs_history_3d)
+            obs_history = obs_history_3d.flatten(1)
+        if self.true_vel_rms is not None:
+            true_vel = self.true_vel_rms(true_vel)
         _, est_vel, _, _, context_vec = self.cenet.before_action(obs_history, true_vel)
         self.current_est_vel = est_vel
         self.current_context_vec = context_vec
@@ -214,7 +240,18 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
                         torch.arange(num_envs, device=self.device), self.history_length
                     )
                     true_vel = self._get_true_velocity()
-
+                    # Update RMS for true velocity (optional)
+                    if self.true_vel_rms is not None:
+                        self.true_vel_rms.update(true_vel.detach())
+                    # Normalize inputs for CENet if RMS is enabled
+                    if self.obs_rms is not None:
+                        # obs_history shape: (batch, history_length * raw_obs_dim)
+                        # Reshape to (batch, history_length, raw_obs_dim) for per-timestep normalization
+                        obs_history_3d = obs_history.view(-1, self.history_length, self.raw_obs_dim)
+                        obs_history_3d = self.obs_rms(obs_history_3d)
+                        obs_history = obs_history_3d.flatten(1)
+                    if self.true_vel_rms is not None:
+                        true_vel = self.true_vel_rms(true_vel)
                     # CENet forward (before action)
                     _, est_vel, _, _, context_vec = self.cenet.before_action(
                         obs_history, true_vel
@@ -243,10 +280,18 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
                     )
 
                     # CENet after action (store next raw observation)
-                    self.cenet.after_action(self._get_actor_observation(next_obs)[:, :self.raw_obs_dim])  # assume first raw_obs_dim are raw obs
+                    next_raw_obs = self._get_actor_observation(next_obs)[:, :self.raw_obs_dim]
+                    # Update RMS for raw observation
+                    if self.obs_rms is not None:
+                        self.obs_rms.update(next_raw_obs.detach())
+                    # Normalize next observation for CENet storage
+                    next_obs_normalized = next_raw_obs
+                    if self.obs_rms is not None:
+                        next_obs_normalized = self.obs_rms(next_raw_obs)
+                    self.cenet.after_action(next_obs_normalized)  # store normalized next observation
 
-                    # Update history buffer with new raw observation
-                    self.update_history(self._get_actor_observation(next_obs)[:, :self.raw_obs_dim])
+                    # Update history buffer with new raw observation (raw)
+                    self.update_history(next_raw_obs)
 
                     # Process the step for PPO
                     self.alg.process_env_step(next_obs, rewards, dones, extras)
@@ -314,6 +359,11 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
         loaded_dict = torch.load(path, map_location=self.device, weights_only=False)
         # Add CENet state dict to the checkpoint
         loaded_dict["cenet_state_dict"] = self.cenet.state_dict()
+        # Add RMS normalization state dicts
+        if self.obs_rms is not None:
+            loaded_dict["obs_rms_state_dict"] = self.obs_rms.state_dict()
+        if self.true_vel_rms is not None:
+            loaded_dict["true_vel_rms_state_dict"] = self.true_vel_rms.state_dict()
         # Save back with CENet included
         torch.save(loaded_dict, path)
         # Export policy to ONNX (including CENet feature generation)
@@ -337,6 +387,13 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
             print(f"Loaded CENet from checkpoint {path}")
         else:
             print(f"CENet state dict not found in checkpoint {path}, skipping.")
+        # Load RMS normalization state dicts if present
+        if "obs_rms_state_dict" in loaded_dict and self.obs_rms is not None:
+            self.obs_rms.load_state_dict(loaded_dict["obs_rms_state_dict"])
+            print(f"Loaded obs_rms from checkpoint {path}")
+        if "true_vel_rms_state_dict" in loaded_dict and self.true_vel_rms is not None:
+            self.true_vel_rms.load_state_dict(loaded_dict["true_vel_rms_state_dict"])
+            print(f"Loaded true_vel_rms from checkpoint {path}")
         return loaded_dict
 
     def get_inference_policy(self, device: str | None = None):
