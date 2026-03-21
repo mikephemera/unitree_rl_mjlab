@@ -266,7 +266,7 @@ def make_dreamwaq_env_cfg() -> ManagerBasedRlEnvCfg:
   rewards = {
     "track_linear_velocity": RewardTermCfg(
       func=mdp.track_linear_velocity,
-      weight=1.0,
+      weight=1.0*1.5,
       params={"command_name": "twist", "std": 0.25},
     ),
     "track_angular_velocity": RewardTermCfg(
@@ -308,7 +308,7 @@ def make_dreamwaq_env_cfg() -> ManagerBasedRlEnvCfg:
     "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.01),
     "foot_gait": RewardTermCfg(
       func=mdp.feet_gait,
-      weight=0.5,
+      weight=0.5/2,
       params={
         "period": 0.6,
         "offset": [0.0, 0.5],
@@ -330,7 +330,7 @@ def make_dreamwaq_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "foot_slip": RewardTermCfg(
       func=mdp.feet_slip,
-      weight=-0.25,
+      weight=-0.25/2,
       params={
         "sensor_name": "feet_ground_contact",
         "command_name": "twist",

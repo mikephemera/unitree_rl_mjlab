@@ -310,6 +310,20 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
                 # Compute returns
                 self.alg.compute_returns(obs)
 
+            # CENet beta annealing
+            if self.cenet_beta_anneal_steps > 0:
+                # Calculate progress based on completed iterations since start of this learning call
+                # start_it is the iteration when this learn() call started (line 231)
+                completed = it - start_it
+                progress = min(1.0, completed / self.cenet_beta_anneal_steps)
+                current_beta = self.cenet_beta + (self.cenet_beta_limit - self.cenet_beta) * progress
+            else:
+                current_beta = self.cenet_beta
+            self.cenet.set_beta(current_beta)
+            # Optionally log current beta
+            if self.logger.writer is not None:
+                self.logger.writer.add_scalar("CENet/beta", current_beta, it)
+
             # CENet update (before PPO update)
             if it % self.cenet_update_freq == 0:
                 mean_total_loss, mean_vel_loss, mean_recon_loss, mean_kl_loss = self.cenet.update()

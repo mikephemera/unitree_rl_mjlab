@@ -209,6 +209,10 @@ class CENet(nn.Module):
         self.encoder.eval()
         self.decoder.eval()
 
+    def set_beta(self, beta: float):
+        """Set the beta (KL weight) for the CENet."""
+        self.beta = beta
+
     def forward(self, obs_history):
         # encoder process
         h = self.encoder(obs_history)
@@ -321,8 +325,6 @@ class CENet(nn.Module):
 
         self.storage.clear()
 
-        # Update beta
-        self.beta = min(self.beta * 1.01, self.beta_limit)
         return mean_total_loss, mean_vel_loss, mean_recon_loss, mean_kl_loss
 
 

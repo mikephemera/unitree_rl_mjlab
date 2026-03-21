@@ -52,7 +52,7 @@ def unitree_go2_dreamwaq_runner_cfg() -> DreamWaqOnPolicyRunnerCfg:
         num_context=16,
         num_estvel=3,
         raw_obs_dim=45,
-        cenet_beta_anneal_steps=0,
+        cenet_beta_anneal_steps=5000, # velocity curriculum changes at 5000 iterations
         cenet_update_freq=1,
         cenet_hidden_dims=(256, 128),
     )
