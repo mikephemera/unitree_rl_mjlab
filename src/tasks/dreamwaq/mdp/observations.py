@@ -68,18 +68,24 @@ def cenet_features(env: ManagerBasedRlEnv, history_length: int) -> torch.Tensor:
     # Access the runner via env (runner should be attached as an attribute)
     if hasattr(env.unwrapped, 'runner') and env.unwrapped.runner is not None:
         runner = env.unwrapped.runner
+        # Ensure history buffer is initialized
+        if runner.history_buffer is None:
+            runner._init_history_buffer(env.num_envs)
         # Use pre‑computed CENet outputs stored in the runner
         # These are set by runner.cenet.before_action before each action
         est_vel = runner.current_est_vel
         context_vec = runner.current_context_vec
         if est_vel is None or context_vec is None:
-            # Fallback: compute from history buffer (should not happen during training)
+            # Compute CENet features from current history buffer
             env_ids = torch.arange(env.num_envs, device=env.device)
             hist_obs = runner.get_history_observations(env_ids, history_length)
             batch_size = hist_obs.shape[0]
             hist_obs_flat = hist_obs.reshape(batch_size, -1)
             with torch.no_grad():
                 _, est_vel, _, _, context_vec = runner.cenet(hist_obs_flat)
+            # Store computed features for possible reuse
+            runner.current_est_vel = est_vel
+            runner.current_context_vec = context_vec
         # Concatenate features
         features = torch.cat([est_vel, context_vec], dim=-1)
         return features

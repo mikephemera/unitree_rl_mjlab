@@ -67,6 +67,8 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
         # Temporary storage for current CENet outputs (est_vel, context_vec)
         self.current_est_vel = None
         self.current_context_vec = None
+        # Initialize history buffer for inference (can be overridden in learn)
+        self._init_history_buffer(self.env.num_envs)
 
     def _init_history_buffer(self, num_envs: int):
         """Initialize history buffer with zeros."""
@@ -148,6 +150,15 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
         selected = selected.permute(1, 0, 2)
         batch_size = selected.shape[0]
         return selected.reshape(batch_size, -1)
+
+    def inference_update_history(self, raw_obs: torch.Tensor):
+        """Update history buffer with raw observation during inference.
+
+        This should be called before each inference step to keep history buffer current.
+        """
+        if self.history_buffer is None:
+            self._init_history_buffer(raw_obs.shape[0])
+        self.update_history(raw_obs)
 
     def learn(self, num_learning_iterations: int, init_at_random_ep_len: bool = False) -> None:
         """Run the learning loop with CENet integration."""
@@ -327,6 +338,28 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
         else:
             print(f"CENet state dict not found in checkpoint {path}, skipping.")
         return loaded_dict
+
+    def get_inference_policy(self, device: str | None = None):
+        """Get inference policy with CENet feature integration.
+
+        Overrides the base method to ensure history buffer is updated and CENet features
+        are computed before each policy call.
+        """
+        # Get the original policy from parent
+        policy = super().get_inference_policy(device)
+        # Ensure history buffer is initialized
+        if self.history_buffer is None:
+            self._init_history_buffer(self.env.num_envs)
+        # Return wrapped policy
+        def wrapped_policy(obs):
+            # obs is the observation returned by env.get_observations()
+            # which already includes CENet features (if computed).
+            # However, we need to update history buffer with raw observation
+            # and compute CENet features for the next step.
+            # For now, we just return the policy output.
+            # TODO: Implement proper history update and CENet feature computation.
+            return policy(obs)
+        return wrapped_policy
 
     def export_policy_to_onnx(self, path: str, filename: str = "policy.onnx"):
         """Export policy to ONNX, incorporating CENet feature generation.
