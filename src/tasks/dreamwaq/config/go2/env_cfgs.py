@@ -38,6 +38,16 @@ def unitree_go2_dreamwaq_env_cfg(
   foot_names = ("FR", "FL", "RR", "RL")
   site_names = ("FR", "FL", "RR", "RL")
   geom_names = tuple(f"{name}_foot_collision" for name in foot_names)
+  calf_geom_names = (
+    "FR_calf1_collision",
+    "FR_calf2_collision",
+    "FL_calf1_collision",
+    "FL_calf2_collision",
+    "RR_calf1_collision",
+    "RR_calf2_collision",
+    "RL_calf1_collision",
+    "RL_calf2_collision",
+  )
 
   feet_ground_cfg = ContactSensorCfg(
     name="feet_ground_contact",
@@ -56,7 +66,7 @@ def unitree_go2_dreamwaq_env_cfg(
       # Grab all collision geoms...
       pattern=r".*_collision\d*$",
       # Except for the foot geoms and calf geoms.
-      exclude=tuple(geom_names) + tuple(f"{name}_calf_collision" for name in foot_names),
+      exclude=tuple(geom_names) + calf_geom_names,
     ),
     secondary=ContactMatch(mode="body", pattern="terrain"),
     fields=("found", "force"),

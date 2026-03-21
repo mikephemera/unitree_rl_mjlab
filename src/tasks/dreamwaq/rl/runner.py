@@ -379,22 +379,24 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
             wandb.save(os.path.join(checkpoint_dir, filename), base_path=checkpoint_dir)
 
     def load(self, path: str, load_cfg: dict | None = None, strict: bool = True, map_location: str | None = None, **kwargs):
-        # Call parent load and get the loaded dictionary
-        loaded_dict = super().load(path, load_cfg=load_cfg, strict=strict, map_location=map_location, **kwargs)
+        # Call parent load (performs migrations and algorithm loading)
+        infos = super().load(path, load_cfg=load_cfg, strict=strict, map_location=map_location, **kwargs)
+        # Reload checkpoint to get CENet and RMS state dicts
+        checkpoint_dict = torch.load(path, map_location=map_location, weights_only=False)
         # Load CENet state dict if present in the checkpoint
-        if "cenet_state_dict" in loaded_dict:
-            self.cenet.load_state_dict(loaded_dict["cenet_state_dict"])
+        if "cenet_state_dict" in checkpoint_dict:
+            self.cenet.load_state_dict(checkpoint_dict["cenet_state_dict"])
             print(f"Loaded CENet from checkpoint {path}")
         else:
             print(f"CENet state dict not found in checkpoint {path}, skipping.")
         # Load RMS normalization state dicts if present
-        if "obs_rms_state_dict" in loaded_dict and self.obs_rms is not None:
-            self.obs_rms.load_state_dict(loaded_dict["obs_rms_state_dict"])
+        if "obs_rms_state_dict" in checkpoint_dict and self.obs_rms is not None:
+            self.obs_rms.load_state_dict(checkpoint_dict["obs_rms_state_dict"])
             print(f"Loaded obs_rms from checkpoint {path}")
-        if "true_vel_rms_state_dict" in loaded_dict and self.true_vel_rms is not None:
-            self.true_vel_rms.load_state_dict(loaded_dict["true_vel_rms_state_dict"])
+        if "true_vel_rms_state_dict" in checkpoint_dict and self.true_vel_rms is not None:
+            self.true_vel_rms.load_state_dict(checkpoint_dict["true_vel_rms_state_dict"])
             print(f"Loaded true_vel_rms from checkpoint {path}")
-        return loaded_dict
+        return infos
 
     def get_inference_policy(self, device: str | None = None):
         """Get inference policy with CENet feature integration.
