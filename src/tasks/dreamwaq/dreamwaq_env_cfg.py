@@ -267,16 +267,16 @@ def make_dreamwaq_env_cfg() -> ManagerBasedRlEnvCfg:
     "track_linear_velocity": RewardTermCfg(
       func=mdp.track_linear_velocity,
       weight=1.0,
-      params={"command_name": "twist", "std": math.sqrt(0.25)},
+      params={"command_name": "twist", "std": 0.25},
     ),
     "track_angular_velocity": RewardTermCfg(
       func=mdp.track_angular_velocity,
-      weight=1.0,
-      params={"command_name": "twist", "std": math.sqrt(0.5)},
+      weight=0.5,
+      params={"command_name": "twist", "std": 0.25},
     ),
     "body_orientation_l2": RewardTermCfg(
       func=mdp.body_orientation_l2,
-      weight=-1.0,
+      weight=-0.2,
       params={"asset_cfg": SceneEntityCfg("robot", body_names=())},  # Set per-robot.
     ),
     "pose": RewardTermCfg(
@@ -302,10 +302,10 @@ def make_dreamwaq_env_cfg() -> ManagerBasedRlEnvCfg:
       weight=-0.025,  # Override per-robot
       params={"sensor_name": "robot/root_angmom"},
     ),
-    "is_terminated": RewardTermCfg(func=mdp.is_terminated, weight=-200.0),
+    "is_terminated": RewardTermCfg(func=mdp.is_terminated, weight=0.0),
     "joint_acc_l2": RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7),
-    "joint_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-10.0),
-    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.05),
+    "joint_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=0.0),
+    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.01),
     "foot_gait": RewardTermCfg(
       func=mdp.feet_gait,
       weight=0.5,
@@ -320,9 +320,9 @@ def make_dreamwaq_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "foot_clearance": RewardTermCfg(
       func=mdp.feet_clearance,
-      weight=-1.0,
+      weight=-0.01,
       params={
-        "target_height": 0.10,
+        "target_height": 0.12,
         "command_name": "twist",
         "command_threshold": 0.1,
         "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
