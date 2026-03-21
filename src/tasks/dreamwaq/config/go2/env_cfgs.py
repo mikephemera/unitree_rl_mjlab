@@ -55,8 +55,8 @@ def unitree_go2_dreamwaq_env_cfg(
       entity="robot",
       # Grab all collision geoms...
       pattern=r".*_collision\d*$",
-      # Except for the foot geoms.
-      exclude=tuple(geom_names),
+      # Except for the foot geoms and calf geoms.
+      exclude=tuple(geom_names) + tuple(f"{name}_calf_collision" for name in foot_names),
     ),
     secondary=ContactMatch(mode="body", pattern="terrain"),
     fields=("found", "force"),
@@ -119,6 +119,7 @@ def unitree_go2_dreamwaq_env_cfg(
     cfg.observations["actor"].enable_corruption = False
     cfg.events.pop("push_robot", None)
     cfg.curriculum = {}
+    #cfg.terminations.pop("illegal_contact", None)
     cfg.events["randomize_terrain"] = EventTermCfg(
       func=envs_mdp.randomize_terrain,
       mode="reset",
