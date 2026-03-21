@@ -131,7 +131,7 @@ def run_play(task_id: str, cfg: PlayConfig):
       video_length=cfg.video_length,
       disable_logger=True,
     )
-
+  print(f"[DEBUG] clip_actions = {agent_cfg.clip_actions}")
   env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
   if DUMMY_MODE:
     action_shape: tuple[int, ...] = env.unwrapped.action_space.shape

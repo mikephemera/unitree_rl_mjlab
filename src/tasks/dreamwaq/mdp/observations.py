@@ -81,6 +81,14 @@ def cenet_features(env: ManagerBasedRlEnv, history_length: int) -> torch.Tensor:
             hist_obs = runner.get_history_observations(env_ids, history_length)
             batch_size = hist_obs.shape[0]
             hist_obs_flat = hist_obs.reshape(batch_size, -1)
+
+            # Apply RMS normalization if enabled (same as in training)
+            if runner.obs_rms is not None:
+                # Reshape to (batch, history_length, raw_obs_dim) for per-timestep normalization
+                hist_obs_3d = hist_obs_flat.view(-1, history_length, runner.raw_obs_dim)
+                hist_obs_3d = runner.obs_rms(hist_obs_3d)
+                hist_obs_flat = hist_obs_3d.flatten(1)
+
             with torch.no_grad():
                 _, est_vel, _, _, context_vec = runner.cenet(hist_obs_flat)
             # Store computed features for possible reuse

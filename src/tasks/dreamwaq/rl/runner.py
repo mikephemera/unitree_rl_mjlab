@@ -407,14 +407,61 @@ class DreamWaqOnPolicyRunner(MjlabOnPolicyRunner):
         # Ensure history buffer is initialized
         if self.history_buffer is None:
             self._init_history_buffer(self.env.num_envs)
+        # Switch CENet to evaluation mode and move to target device
+        if device is not None:
+            self.cenet.to(device)
+        self.cenet.test_mode()
         # Return wrapped policy
         def wrapped_policy(obs):
-            # obs is the observation returned by env.get_observations()
-            # which already includes CENet features (if computed).
-            # However, we need to update history buffer with raw observation
-            # and compute CENet features for the next step.
-            # For now, we just return the policy output.
-            # TODO: Implement proper history update and CENet feature computation.
+            # Determine target device (where CENet resides)
+            target_device = self.cenet.device
+            # 1. Extract raw observation from actor observation (first raw_obs_dim dimensions)
+            actor_obs = obs["actor"].to(target_device)
+            raw_obs = actor_obs[:, :self.raw_obs_dim]
+
+            # 2. Update history buffer with current raw observation
+            # History buffer is stored on self.device; ensure raw_obs is on same device
+            if raw_obs.device != self.device:
+                raw_obs = raw_obs.to(self.device)
+            self.inference_update_history(raw_obs)
+
+            # 3. Compute CENet features from updated history
+            env_ids = torch.arange(self.env.num_envs, device=self.device)
+            hist_obs = self.get_history_observations(env_ids, self.history_length)
+            # Move history observations to CENet device
+            hist_obs = hist_obs.to(target_device)
+            batch_size = hist_obs.shape[0]
+            hist_obs_flat = hist_obs.reshape(batch_size, -1)
+
+            # Apply RMS normalization if enabled (same as in training)
+            if self.obs_rms is not None:
+                # Reshape to (batch, history_length, raw_obs_dim) for per-timestep normalization
+                hist_obs_3d = hist_obs_flat.view(-1, self.history_length, self.raw_obs_dim)
+                # obs_rms is on self.device; move hist_obs_3d to self.device for normalization
+                hist_obs_3d = self.obs_rms(hist_obs_3d.to(self.device))
+                hist_obs_flat = hist_obs_3d.flatten(1).to(target_device)
+
+            with torch.no_grad():
+                _, est_vel, _, _, context_vec = self.cenet(hist_obs_flat)
+            # Store computed features for reuse by observation manager
+            self.current_est_vel = est_vel
+            self.current_context_vec = context_vec
+
+            # 4. Construct CENet features (estimated velocity + context vector)
+            cenet_features = torch.cat([est_vel, context_vec], dim=-1)  # shape: (num_envs, 19)
+
+            # 5. Replace the CENet feature portion in both actor and critic observations
+            # In the observation configuration, cenet_features is the last term,
+            # so it occupies the last 19 dimensions of the concatenated observation.
+            actor_obs[:, -cenet_features.shape[1]:] = cenet_features
+            obs["actor"] = actor_obs
+
+            if "critic" in obs:
+                critic_obs = obs["critic"].to(target_device)
+                critic_obs[:, -cenet_features.shape[1]:] = cenet_features
+                obs["critic"] = critic_obs
+
+            # 6. Call the original policy with updated observations
             return policy(obs)
         return wrapped_policy
 
